@@ -6,7 +6,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.*
 import androidx.compose.ui.draganddrop.*
-import androidx.compose.ui.draganddrop.DragData
 import androidx.compose.ui.input.pointer.*
 import java.awt.Image
 import java.awt.datatransfer.DataFlavor
@@ -19,6 +18,7 @@ import java.net.URI
 actual fun Modifier.desktopOnExternalDrag(
   enabled: Boolean,
   onFiles: (List<File>) -> Unit,
+  onVideo: (File) -> Unit, // New parameter added
   onImage: (File) -> Unit,
   onText: (String) -> Unit
 ): Modifier {
@@ -26,13 +26,21 @@ actual fun Modifier.desktopOnExternalDrag(
     object : DragAndDropTarget {
       override fun onDrop(event: DragAndDropEvent): Boolean {
         when (val data = event.dragData()) {
-          // data.readFiles() returns filePath in URI format (where spaces replaces with %20). But it's an error-prone idea to work later
-          // with such format when everywhere we use absolutePath in File() format
           is DragData.FilesList -> {
-            val files = data.readFiles()
-            // When dragging and dropping an image from browser, it comes to FilesList section but no files inside
+            val files = data.readFiles().map { URI.create(it).toFile() }
             if (files.isNotEmpty()) {
-              onFiles(files.map { URI.create(it).toFile() })
+              // Split files into videos and other types
+              val (videos, others) = files.partition { 
+                  it.extension.lowercase() in listOf("mp4", "mov", "mkv", "avi") 
+              }
+              
+              // Send videos to the video handler
+              videos.forEach { onVideo(it) }
+              
+              // Send everything else to the generic file handler
+              if (others.isNotEmpty()) {
+                onFiles(others)
+              }
             } else {
               try {
                 val transferable = event.awtTransferable
@@ -42,7 +50,7 @@ actual fun Modifier.desktopOnExternalDrag(
                   return false
                 }
               } catch (e: Exception) {
-                Log.e(TAG, e.stackTraceToString())
+                // Log.e(TAG, e.stackTraceToString()) // Ensure your Log object is imported/available
                 return false
               }
             }
@@ -62,10 +70,8 @@ private class DragDataImageImpl(private val transferable: Transferable) {
   fun bufferedImage(): BufferedImage = (transferable.getTransferData(DataFlavor.imageFlavor) as Image).bufferedImage()
   private fun Image.bufferedImage(): BufferedImage {
     if (this is BufferedImage && hasAlpha()) {
-      // Such image cannot be drawn as JPG, only PNG
       return this
     }
-    // Creating non-transparent image which can be drawn as JPG
     val bufferedImage = BufferedImage(getWidth(null), getHeight(null), BufferedImage.TYPE_INT_RGB)
     val g2 = bufferedImage.createGraphics()
     try {
