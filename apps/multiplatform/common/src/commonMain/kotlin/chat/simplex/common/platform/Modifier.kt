@@ -18,6 +18,7 @@ import java.io.File
 expect fun Modifier.desktopOnExternalDrag(
   enabled: Boolean = true,
   onFiles: (List<File>) -> Unit = {},
+  onVideo: (File) -> Unit = {}, // Adds video handling
   onImage: (File) -> Unit = {},
   onText: (String) -> Unit = {}
 ): Modifier
