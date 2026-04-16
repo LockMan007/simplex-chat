@@ -864,13 +864,24 @@ fun ChatLayout(
     Modifier
       .fillMaxWidth()
       .desktopOnExternalDrag(
-        enabled = remember(attachmentDisabled.value, chatInfo.value?.sendMsgEnabled) { mutableStateOf(!attachmentDisabled.value && chatInfo.value?.sendMsgEnabled == true) }.value,
+        enabled = remember(attachmentDisabled.value, chatInfo.value?.sendMsgEnabled) { 
+            mutableStateOf(!attachmentDisabled.value && chatInfo.value?.sendMsgEnabled == true) 
+        }.value,
         onFiles = { paths -> composeState.onFilesAttached(paths.map { it.toURI() }) },
-        onImage = { file -> CoroutineScope(Dispatchers.IO).launch { composeState.processPickedMedia(listOf(file.toURI()), null) } },
-        onText = {
-          // Need to parse HTML in order to correctly display the content
-          //composeState.value = composeState.value.copy(message = composeState.value.message + it)
+        // Add the video handler here:
+        onVideo = { file -> 
+            // You can use a similar process to onImage or onFiles
+            // Depending on how composeState handles video attachments
+            CoroutineScope(Dispatchers.IO).launch { 
+                composeState.processPickedMedia(listOf(file.toURI()), null) 
+            } 
         },
+        onImage = { file -> 
+            CoroutineScope(Dispatchers.IO).launch { 
+                composeState.processPickedMedia(listOf(file.toURI()), null) 
+            } 
+        },
+        onText = { /* ... */ },
       )
   ) {
     ModalBottomSheetLayout(
